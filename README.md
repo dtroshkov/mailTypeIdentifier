@@ -11,7 +11,7 @@ mailTypeIdentifier — скрипт, определяющий принадлеж
 2. Скрипт сравнивает содержимое MX записей с внутренним списком, и при совпадении выводит сообщение в Console.
 3. Если в MX отсутствуют записи, соответствующие серверам: **Google, Yandex, Mail.ru, Outlook**, скрипт запускает функцию **«ExchangeSearcher»**.
 4. Функция **«ExchangeSearcher»** по списку отправляет ***curl*** запрос на возможные url для входа в Exchange и ждет **ResponseCode**  
-5. Если **ResponseCode = 200 или 401** → выводим url адрес входа в Console.
+5. Если **ResponseCode = 200 или 401** → выводим url адрес входа на сервер Exchange в Console.
 
 ## Запуск в Windows
 
