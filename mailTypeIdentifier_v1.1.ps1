@@ -1,13 +1,26 @@
-﻿function ExchangeSearcher {
+﻿add-type @"
+      using System.Net;
+      using System.Security.Cryptography.X509Certificates;
+      public class TrustAllCertsPolicy : ICertificatePolicy {
+          public bool CheckValidationResult(
+              ServicePoint srvPoint, X509Certificate certificate,
+              WebRequest request, int certificateProblem) {
+              return true;
+          }
+      }
+"@
+[System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+
+function ExchangeSearcher {
   $SubDomains = 'mail', 'owa', 'mx', 'web', 'exchange', 'outlook'
   $SuccessStatusCodes = '401', '200'
   $TimeoutSec = 3
   $ExchangeHelper = "`n`nВ поле «Имя пользователя» нужно указать через обратный слэш: домен рабочей сети \ имя пользователя компьютера.`nЧаще всего клиенты знают его сами, но бывает, что нет. Тогда помогаем его определить по`nинструкции: https://huntflow.ru/help/knowledge-base/domain-login/ или просим узнать у их IT-специалистов.`n`nПри подключении почты для проверки корректности вводимого пароля нужно вставить адрес сервера в браузере, чтобы открылось окно авторизации и ввести в нём почту и пароль. Если получится войти, то пароль верный."
 
   foreach ( $sub in $SubDomains ) {
-    $url = "https://$sub.$DomainName/EWS/Exchange.asmx"
+    $url = "$sub.$DomainName/EWS/Exchange.asmx"
     try {
-      $Response = Invoke-WebRequest -Uri $url -TimeoutSec $TimeoutSec
+      $Response = Invoke-WebRequest -Uri $url -TimeoutSec $TimeoutSec -MaximumRedirection 0
       $StatusCode = $Response.StatusCode
     }
     catch {
@@ -25,11 +38,10 @@
 }
 function MailDefiner {
   try {
-    $DomainName = Read-Host "Введите почтовый домен клиента:"
+    $ClientMail = Read-Host "Введите почту клиента:" | Select-String -Pattern '\w+\.\w{2,3}$'
+    $DomainName = $ClientMail.Matches[0]
     Write-Host "Почтовый домен: $DomainName, начинаем проверку...`n"
-
     $MxRecord = Out-String -InputObject $(Resolve-DnsName -Name $DomainName -Type MX -Server 8.8.8.8 -ErrorAction Stop).NameExchange
-    #Write-Host $MxRecord
 
     switch -wildcard ($MxRecord) {
       "*google.com*" { Write-Host  "У клиента почта от Google. «Добавить почту» → Google»`n" -ForegroundColor green }
@@ -47,8 +59,11 @@ function MailDefiner {
     #$PSCmdlet.ThrowTerminatingError($PSItem)
     Write-Host Ошибка! Имя домена → $_.Exception.Message -ForegroundColor Red
   }
-  Write-Host  "`nPress any key to continue..."
-  $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+  # Write-Host  "`nPress any key to continue..."
+  # $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
 }
 
 MailDefiner
+write-host -nonewline "`nContinue? (Y/N) "
+$response = read-host
+if ( $response -ne "Y" ) { exit } else { MailDefiner }
