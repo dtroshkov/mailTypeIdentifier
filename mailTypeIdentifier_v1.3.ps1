@@ -62,15 +62,17 @@ function MailDefiner {
         Write-Host "Стандартные типы серверов не подошли"
         Write-Host "Возможно у клиента Exchange — проверяем..`n"
         ExchangeSearcher
-        write-host -nonewline "`nContinue? (Y/N) "
-        $response = read-host
-        if ( $response -ne "Y" ) { exit } else { MailDefiner }
       }
     }
   }
   catch {
     #$PSCmdlet.ThrowTerminatingError($PSItem)
     Write-Host "Ошибка! → $_.Exception.Message" -ForegroundColor Red 
+  }
+  finally {
+    write-host -nonewline "`nContinue? (Y/N) "
+    $response = read-host
+    if ( $response -ne "Y" ) { exit } else { MailDefiner }
   }
   # Write-Host  "`nPress any key to continue..."
   # $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
