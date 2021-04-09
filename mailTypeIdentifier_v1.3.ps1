@@ -12,29 +12,39 @@
 [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
 
 function ExchangeSearcher {
+  $Protocols = 'http', 'https'
   $SubDomains = 'mail', 'owa', 'mx', 'web', 'exchange', 'outlook'
-  $SuccessStatusCodes = '401', '200'
+  $SuccessStatusCodes = '401', '200', '302'
   $TimeoutSec = 3
-  $ExchangeHelper = "`n`nВ поле «Имя пользователя» нужно указать через обратный слэш: домен рабочей сети \ имя пользователя компьютера.`nЧаще всего клиенты знают его сами, но бывает, что нет. Тогда помогаем его определить по`nинструкции: https://huntflow.ru/help/knowledge-base/domain-login/ или просим узнать у их IT-специалистов.`n`nПри подключении почты для проверки корректности вводимого пароля нужно вставить адрес сервера в браузере, чтобы открылось окно авторизации и ввести в нём почту и пароль. Если получится войти, то пароль верный."
-
-  foreach ( $sub in $SubDomains ) {
-    $url = "$sub.$DomainName/EWS/Exchange.asmx"
-    try {
-      $Response = Invoke-WebRequest -Uri $url -TimeoutSec $TimeoutSec -MaximumRedirection 0
-      $StatusCode = $Response.StatusCode
-    }
-    catch {
-      $StatusCode = $_.Exception.Response.StatusCode.value__
-    }
-    if ($StatusCode -in $SuccessStatusCodes ) {
-      Write-Host $url — "OK!" $ExchangeHelper -ForegroundColor green
-      return
-    }
-    else {
-      Write-Host $url — "Ошибка!" -ForegroundColor red
+  $ResReceived = 0
+  $ExchangeHelper = "`nВ поле «Имя пользователя» нужно указать через обратный слэш: домен рабочей сети \ имя пользователя компьютера.`nЧаще всего клиенты знают его сами, но бывает, что нет. Тогда помогаем его определить по`nинструкции: https://huntflow.ru/help/knowledge-base/domain-login/ или просим узнать у их IT-специалистов.`n`nПри подключении почты для проверки корректности вводимого пароля нужно вставить адрес сервера в браузере, чтобы открылось окно авторизации и ввести в нём почту и пароль. Если получится войти, то пароль верный."
+  
+  foreach ( $proto in $Protocols ) {
+    foreach ( $sub in $SubDomains ) {
+      $url = "$($proto)://$sub.$DomainName/EWS/Exchange.asmx"
+      try {
+        $Response = Invoke-WebRequest -Uri $url -TimeoutSec $TimeoutSec -MaximumRedirection 0 -ErrorAction SilentlyContinue
+        $StatusCode = $Response.StatusCode
+      }
+      catch {
+        $StatusCode = $_.Exception.Response.StatusCode.value__
+      }
+      if ($StatusCode -in $SuccessStatusCodes ) {
+        Write-Host $url — "OK!"  -ForegroundColor green
+        $ResReceived = 1
+      }
+      else {
+        Write-Host $url — "Ошибка!" -ForegroundColor red
+      }
     }
   }
-  write-host "`nОшибка! У пользователя другой тип почты." -ForegroundColor red
+  if ($ResReceived) {
+    Write-Host $ExchangeHelper -ForegroundColor green
+  }
+  else {
+    Write-host "`nОшибка! У пользователя другой тип почты." -ForegroundColor red
+  }
+  
 }
 function MailDefiner {
   try {
@@ -52,18 +62,18 @@ function MailDefiner {
         Write-Host "Стандартные типы серверов не подошли"
         Write-Host "Возможно у клиента Exchange — проверяем..`n"
         ExchangeSearcher
+        write-host -nonewline "`nContinue? (Y/N) "
+        $response = read-host
+        if ( $response -ne "Y" ) { exit } else { MailDefiner }
       }
     }
   }
   catch {
     #$PSCmdlet.ThrowTerminatingError($PSItem)
-    Write-Host Ошибка! Имя домена → $_.Exception.Message -ForegroundColor Red
+    Write-Host "Ошибка! → $_.Exception.Message" -ForegroundColor Red 
   }
   # Write-Host  "`nPress any key to continue..."
   # $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
 }
 
 MailDefiner
-write-host -nonewline "`nContinue? (Y/N) "
-$response = read-host
-if ( $response -ne "Y" ) { exit } else { MailDefiner }
