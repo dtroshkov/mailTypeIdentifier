@@ -13,7 +13,7 @@
 
 function ExchangeSearcher {
   $Protocols = 'http', 'https'
-  $SubDomains = 'mail', 'owa', 'mx', 'web', 'exchange', 'outlook'
+  $SubDomains = 'mail', 'owa', 'mx', 'web', 'exchange', 'outlook', 'exch'
   $SuccessStatusCodes = '401', '200', '302'
   $TimeoutSec = 3
   $ResReceived = 0
@@ -23,8 +23,7 @@ function ExchangeSearcher {
     foreach ( $sub in $SubDomains ) {
       $url = "$($proto)://$sub.$DomainName/EWS/Exchange.asmx"
       try {
-        $Response = Invoke-WebRequest -Uri $url -TimeoutSec $TimeoutSec -MaximumRedirection 0 -ErrorAction SilentlyContinue
-        $StatusCode = $Response.StatusCode
+        $StatusCode = (Invoke-WebRequest -Uri $url -TimeoutSec $TimeoutSec -MaximumRedirection 0 -ErrorAction SilentlyContinue).StatusCode
       }
       catch {
         $StatusCode = $_.Exception.Response.StatusCode.value__
@@ -59,23 +58,17 @@ function MailDefiner {
       "*yandex*" { Write-Host "У клиента почта от yandex. «Добавить почту» → Другая почта`nСервер входящей почты — imap.yandex.ru, порт 993`nСервер исходящей почты — smtp.yandex.ru, порт 465`nПоставить обе галочки на «Безопасное соединение» и сохраните.`n" -ForegroundColor green }
       "*outlook.com*" { Write-Host "У клиента облачный Аутлук. «Добавить почту» → Outlook 365 → Разрешить доступ`nПочтовый сервер (поле «Адрес сервера») для всех клиентов с таким типом почты: https://outlook.office365.com/EWS/Exchange.asmx`nВ поле Имя пользователя вводится повторно адрес почты.`n" -ForegroundColor green }
       default {
-        Write-Host "Стандартные типы серверов не подошли"
-        Write-Host "Возможно у клиента Exchange — проверяем..`n"
+        Write-Host "Стандартные типы серверов не подошли`nВозможно у клиента Exchange — проверяем..`n"
         ExchangeSearcher
       }
     }
   }
   catch {
-    #$PSCmdlet.ThrowTerminatingError($PSItem)
     Write-Host "Ошибка! → $_.Exception.Message" -ForegroundColor Red 
   }
   finally {
-    write-host -nonewline "`nContinue? (Y/N) "
-    $response = read-host
-    if ( $response -ne "Y" ) { exit } else { MailDefiner }
+    $continue = Read-Host "`nContinue? (Y/N)"
+    if ( $continue -ne "Y" ) { exit } else { MailDefiner }
   }
-  # Write-Host  "`nPress any key to continue..."
-  # $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
 }
-
 MailDefiner
